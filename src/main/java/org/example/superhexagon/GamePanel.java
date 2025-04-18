@@ -1,3 +1,5 @@
+
+// GamePanel.java
 package org.example.superhexagon;
 
 import javax.swing.*;
@@ -7,38 +9,50 @@ import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 
+
 public class GamePanel extends JPanel implements ActionListener {
     private final GameManager gameManager;
     private final String playerName;
+
     private final Timer timer;
     private final HexagonGrid grid;
     private final PlayerIndicator player;
+
     private boolean leftPressed = false;
     private boolean rightPressed = false;
-    private int colorTimer=0;
-    // سیستم مدیریت رنگ و سختی بازی
-        this.colorManager = new ColorManager();
-        this.difficultyManager = new GameDifficultyManager();
+
+    private final ColorManager colorManager;
+    private final GameDifficultyManager difficultyManager;
+    private final PhaseController phaseController;
+
+    private final ObstacleManager obstacleManager;
+    private final GameHistory history;
+
+    private int colorTimer = 0;
+    private double timeElapsed =0;
 
 
 
     public GamePanel(GameManager gameManager, String playerName) {
         this.gameManager = gameManager;
         this.playerName = playerName;
-        this.setFocusable(true);
-        this.requestFocusInWindow();
+
+        setFocusable(true);
+        requestFocusInWindow();
         setBackground(Color.BLACK);
         SwingUtilities.invokeLater(this::requestFocusInWindow);
 
-        // اصلاح گرفتن فوکوس
-       this.grid = new HexagonGrid(400, 400, 100);
-        this.grid.setSides(difficultyManager.getCurrentPolygonSides());//
-        this.grid.updateSectorColors(this.colorManager.getSectorColors());
+        this.colorManager = new ColorManager();
+        this.difficultyManager = new GameDifficultyManager();
+        this.phaseController = new PhaseController();
+        this.history = new GameHistory();
 
-        this.obstacleManager = new ObstacleManager(grid.getSides(), colorManager.getObstacleColor());//
-        player = new PlayerIndicator(160, 10, 0, 3);
-        timer = new Timer(16, this); // ~60 FPS
-        timer.start();
+        this.grid = new HexagonGrid(400, 400, 100);
+        this.obstacleManager = new ObstacleManager();
+        this.player = new PlayerIndicator(120, 10,0, 5, colorManager.getObstacleColor());
+
+        this.timer = new Timer(16, this);
+        this.timer.start();
 
         addKeyListener(new KeyAdapter() {
             @Override
@@ -55,52 +69,68 @@ public class GamePanel extends JPanel implements ActionListener {
         });
     }
 
-
-
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g.create();
-       g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
         grid.draw(g2d);
-//==============
         obstacleManager.drawAll(g2d, 400, 400, grid.getRotation());
         player.draw(g2d, 400, 400);
+        drawInfo(g2d);
 
         g2d.dispose();
+    }
 
-      //  grid.draw(g2d);
-        player.draw(g2d, 400, 400);
-
-        g2d.dispose();
-
-
+    private void drawInfo(Graphics2D g2d) {
+        g2d.setColor(Color.WHITE);
+        g2d.setFont(new Font("SansSerif", Font.BOLD, 18));
+        g2d.drawString("TIME: " + (int) timeElapsed, 20, 30);
+        Double best = history.getBestScore(playerName);
+        if (best != null) {
+            g2d.drawString("BEST: " + best.intValue(), 650, 30);
+        }
     }
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        double deltaTime = 0.016; // تقریبا معادل با 60 FPS
+        double deltaTime = 0.016;
+        timeElapsed += deltaTime;
 
-        this.difficultyManager.updateDifficulty(deltaTime); // سرعت و سختی بازی با گذر زمان افزایش پیدا می‌کند
-        this.grid.setSides(this.difficultyManager.getCurrentPolygonSides());
-        this.grid.updateRotation(this.difficultyManager.getSpeed());
-        this.player.updateRelativeToStage(this.difficultyManager.getSpeed());
+        phaseController.update(deltaTime);
+        int currentSides = phaseController.getCurrentSides();
 
-        this.obstacleManager.updateAll();
+        difficultyManager.updateDifficulty(deltaTime);
+        grid.setSides(currentSides);
+        grid.updateRotation(difficultyManager.getSpeed());
+        grid.updatePulse();
 
-        this.colorTimer++;
-        if (this.colorTimer >= 240) {
-            this.colorManager.changeColorsRandomly();
-            this.grid.updateSectorColors(this.colorManager.getSectorColors());
-            this.colorTimer = 0;
+        player.setSides(currentSides);
+
+        colorTimer++;
+        if (colorTimer >= 180) {
+            grid.updateSectorColors(colorManager.getSectorColors());
+            player.setColor(colorManager.getObstacleColor());
+            colorTimer = 0;
         }
 
-        if (leftPressed) this.player.rotateLeft();
-        if (rightPressed) this.player.rotateRight();
+        obstacleManager.updateAll(currentSides, colorManager.getObstacleColor(), difficultyManager.getSpeed(), timeElapsed);
+
+
+        player.updateRelativeToStage(difficultyManager.getSpeed());
+
+        if (leftPressed) player.rotateLeft();
+        if (rightPressed) player.rotateRight();
+
+        boolean hit = obstacleManager.checkCollision(player, currentSides); // ✅ اگر لازم بود این متد بسازیم
+        if (hit) {
+           history.saveGame(playerName,timeElapsed);
+            timer.stop();
+           gameManager.showGameOver(timeElapsed, history.getBestScore(playerName));
+        }
 
         repaint();
     }
+
 }
-
-
-

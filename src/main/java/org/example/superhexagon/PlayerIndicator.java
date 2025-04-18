@@ -1,20 +1,21 @@
 package org.example.superhexagon;
 
-
-
 import java.awt.*;
 
 public class PlayerIndicator {
-    private double angle; // زاویه فعلی نشانگر نسبت به مرکز
-    private final int distanceFromCenter; // فاصله ثابت از مرکز
-    private final int size; // اندازه مثلث بازیکن
-    private final double playerSpeed; // سرعت چرخش
+    private double angle; // زاویه فعلی نسبت به مرکز (درجه)
+    private final int distanceFromCenter; // فاصله از مرکز
+    private final int size; // اندازه مثلث
+    private final double playerSpeed; // سرعت چرخش (درجه به ازای هر فشار کلید)
+    private Color color;
+    private int sides = 6; // تعداد اضلاع چندضلعی مرکزی (در صورت نیاز برای برخورد)
 
-    public PlayerIndicator(int distanceFromCenter, int size, double initialAngle, double playerSpeed) {
+    public PlayerIndicator(int distanceFromCenter, int size, double initialAngle, double playerSpeed, Color color) {
         this.distanceFromCenter = distanceFromCenter;
         this.size = size;
         this.angle = initialAngle;
         this.playerSpeed = playerSpeed;
+        this.color = color;
     }
 
     public void rotateLeft() {
@@ -25,7 +26,6 @@ public class PlayerIndicator {
         angle += playerSpeed;
     }
 
-    // برای هماهنگ ماندن با چرخش زمین (نسبی)
     public void updateRelativeToStage(double stageRotation) {
         angle += stageRotation;
     }
@@ -43,12 +43,32 @@ public class PlayerIndicator {
             triangle.addPoint(px, py);
         }
 
-        g2d.setColor(Color.WHITE);
+        g2d.setColor(color);
         g2d.fillPolygon(triangle);
     }
 
-    // Getter برای زاویه در صورت نیاز برای بررسی برخورد
     public double getAngle() {
-        return angle;
+        return angle % 360;
     }
+
+    public void setColor(Color newColor) {
+        this.color = newColor;
+    }
+
+    public void setSides(int sides) {
+        this.sides = sides;
+    }
+
+    public void setDistanceFromCenter(int newDistance) {
+        // اضافه برای انعطاف بیشتر
+        // اگر خواستی بازیکن رو به مرکز نزدیک‌تر کنی
+    }
+
+
+
+    public double getDistanceFromCenter() {
+        return distanceFromCenter;
+    }
+
+
 }

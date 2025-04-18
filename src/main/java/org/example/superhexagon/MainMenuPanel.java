@@ -19,10 +19,6 @@ import java.awt.*;
             add(startButton, gbc);
 
 
-
-
-
-
             JButton historyButton = new JButton("تاریخچه بازی‌ها");
             historyButton.addActionListener(e -> gameManager.showHistory());
 
